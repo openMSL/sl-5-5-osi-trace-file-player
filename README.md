@@ -13,28 +13,28 @@ An exemplary trace file is available in folder _trace_file_examples_.
 Install `cmake` (at least version 3.10.2):
 
 ```bash
-$ sudo apt-get install cmake
+sudo apt-get install cmake
 ```
 
 Install `protobuf` (at least version 3.0.0):
 
 ```bash
-$ sudo apt-get install libprotobuf-dev protobuf-compiler
+sudo apt-get install libprotobuf-dev protobuf-compiler
 ```
 
 ### Clone with submodules
 
 ```bash
-$ git clone https://github.com/openMSL/sl-5-5-osi-trace-file-player.git
-$ cd sl-5-5-osi-trace-file-player
-$ git submodule update --init
+git clone https://github.com/openMSL/sl-5-5-osi-trace-file-player.git
+cd sl-5-5-osi-trace-file-player
+git submodule update --init
 ```
 
 ### Build
 
 ```bash
-$ mkdir -p build
-$ cd build
-$ cmake ..
-$ cmake --build .
+mkdir -p build
+cd build
+cmake ..
+cmake --build .
 ```
