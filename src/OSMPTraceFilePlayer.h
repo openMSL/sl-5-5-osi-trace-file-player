@@ -234,4 +234,7 @@ class COSMPTraceFilePlayer
     /* Protocol Buffer Accessors */
     void SetFmiSensorViewOut(const osi3::SensorView &data);
     void SetFmiSensorDataOut(const osi3::SensorData &data);
+
+    void ResetFmiSensorViewOut();
+    void ResetFmiSensorDataOut();
 };
