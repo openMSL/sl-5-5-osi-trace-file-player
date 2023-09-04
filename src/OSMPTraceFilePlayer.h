@@ -76,17 +76,30 @@ namespace fs = std::experimental::filesystem;
 #include "osi_sensordata.pb.h"
 
 /* FMU Class */
-class COSMPTraceFilePlayer {
-public:
+class COSMPTraceFilePlayer
+{
+ public:
     /* FMI2 Interface mapped to C++ */
-    COSMPTraceFilePlayer(fmi2String theinstanceName, fmi2Type thefmuType, fmi2String thefmuGUID, fmi2String thefmuResourceLocation, const fmi2CallbackFunctions* thefunctions, fmi2Boolean thevisible, fmi2Boolean theloggingOn);
+    COSMPTraceFilePlayer(fmi2String theinstance_name,
+                         fmi2Type thefmu_type,
+                         fmi2String thefmu_guid,
+                         fmi2String thefmu_resource_location,
+                         const fmi2CallbackFunctions *thefunctions,
+                         fmi2Boolean thevisible,
+                         fmi2Boolean thelogging_on);
     ~COSMPTraceFilePlayer();
-    fmi2Status SetDebugLogging(fmi2Boolean theloggingOn,size_t nCategories, const fmi2String categories[]);
-    static fmi2Component Instantiate(fmi2String instanceName, fmi2Type fmuType, fmi2String fmuGUID, fmi2String fmuResourceLocation, const fmi2CallbackFunctions* functions, fmi2Boolean visible, fmi2Boolean loggingOn);
-    fmi2Status SetupExperiment(fmi2Boolean toleranceDefined, fmi2Real tolerance, fmi2Real startTime, fmi2Boolean stopTimeDefined, fmi2Real stopTime);
+    fmi2Status SetDebugLogging(fmi2Boolean thelogging_on, size_t n_categories, const fmi2String categories[]);
+    static fmi2Component Instantiate(fmi2String instance_name,
+                                     fmi2Type fmu_type,
+                                     fmi2String fmu_guid,
+                                     fmi2String fmu_resource_location,
+                                     const fmi2CallbackFunctions *functions,
+                                     fmi2Boolean visible,
+                                     fmi2Boolean logging_on);
+    fmi2Status SetupExperiment(fmi2Boolean tolerance_defined, fmi2Real tolerance, fmi2Real start_time, fmi2Boolean stop_time_defined, fmi2Real stop_time);
     fmi2Status EnterInitializationMode();
     fmi2Status ExitInitializationMode();
-    fmi2Status DoStep(fmi2Real currentCommunicationPoint, fmi2Real communicationStepSize, fmi2Boolean noSetFMUStatePriorToCurrentPointfmi2Component);
+    fmi2Status DoStep(fmi2Real current_communication_point, fmi2Real communication_step_size, fmi2Boolean no_set_fmu_state_prior_to_current_pointfmi_2_component);
     fmi2Status Terminate();
     fmi2Status Reset();
     void FreeInstance();
@@ -99,23 +112,24 @@ public:
     fmi2Status SetBoolean(const fmi2ValueReference vr[], size_t nvr, const fmi2Boolean value[]);
     fmi2Status SetString(const fmi2ValueReference vr[], size_t nvr, const fmi2String value[]);
 
-protected:
+ protected:
     /* Internal Implementation */
-    fmi2Status doInit();
-    fmi2Status doStart(fmi2Boolean toleranceDefined, fmi2Real tolerance, fmi2Real startTime, fmi2Boolean stopTimeDefined, fmi2Real stopTime);
-    fmi2Status doEnterInitializationMode();
-    fmi2Status doExitInitializationMode();
-    fmi2Status doCalc(fmi2Real currentCommunicationPoint, fmi2Real communicationStepSize, fmi2Boolean noSetFMUStatePriorToCurrentPointfmi2Component);
-    fmi2Status doTerm();
-    void doFree();
+    fmi2Status DoInit();
+    fmi2Status DoStart(fmi2Boolean tolerance_defined, fmi2Real tolerance, fmi2Real start_time, fmi2Boolean stop_time_defined, fmi2Real stop_time);
+    fmi2Status DoEnterInitializationMode();
+    fmi2Status DoExitInitializationMode();
+    fmi2Status DoCalc(fmi2Real current_communication_point, fmi2Real communication_step_size, fmi2Boolean no_set_fmu_state_prior_to_current_point);
+    fmi2Status DoTerm();
+    void DoFree();
 
-protected:
+ protected:
     /* Private File-based Logging just for Debugging */
 #ifdef PRIVATE_LOG_PATH_TRACE_FILE_PLAYER
     static ofstream private_log_file;
 #endif
 
-    static void fmi_verbose_log_global(const char* format, ...) {
+    static void fmi_verbose_log_global(const char *format, ...)
+    {
 #ifdef VERBOSE_FMI_LOGGING_TRACE_FILE_PLAYER
 #ifdef PRIVATE_LOG_PATH_TRACE_FILE_PLAYER
         va_list ap;
@@ -136,7 +150,7 @@ protected:
 #endif
     }
 
-    void internal_log(const char* category, const char* format, va_list arg)
+    void internal_log(const char *category, const char *format, va_list arg)
     {
 #if defined(PRIVATE_LOG_PATH_TRACE_FILE_PLAYER) || defined(PUBLIC_LOGGING_TRACE_FILE_PLAYER)
         char buffer[1024];
@@ -161,7 +175,8 @@ protected:
 #endif
     }
 
-    void fmi_verbose_log(const char* format, ...) {
+    void fmi_verbose_log(const char *format, ...)
+    {
 #if  defined(VERBOSE_FMI_LOGGING_TRACE_FILE_PLAYER) && (defined(PRIVATE_LOG_PATH_TRACE_FILE_PLAYER) || defined(PUBLIC_LOGGING_TRACE_FILE_PLAYER))
         va_list ap;
         va_start(ap, format);
@@ -171,7 +186,8 @@ protected:
     }
 
     /* Normal Logging */
-    void normal_log(const char* category, const char* format, ...) {
+    void normal_log(const char *category, const char *format, ...)
+    {
 #if defined(PRIVATE_LOG_PATH_TRACE_FILE_PLAYER) || defined(PUBLIC_LOGGING_TRACE_FILE_PLAYER)
         va_list ap;
         va_start(ap, format);
@@ -180,7 +196,7 @@ protected:
 #endif
     }
 
-protected:
+ protected:
     /* Members */
     string instanceName;
     fmi2Type fmuType;
@@ -194,33 +210,33 @@ protected:
     fmi2Integer integer_vars[FMI_INTEGER_VARS];
     fmi2Real real_vars[FMI_REAL_VARS];
     string string_vars[FMI_STRING_VARS];
-    string* currentBuffer;
-    string* lastBuffer;
+    string *current_buffer_;
+    string *last_buffer_;
     long totalLength = 0;
     long playedFrames = 0;
     struct file_extension_is
     {
         std::string ext;
-        explicit file_extension_is(std::string  ext): ext(std::move(ext)) {}
-        bool operator()(fs::directory_entry const& entry) const
+        explicit file_extension_is(std::string ext) : ext(std::move(ext)) {}
+        bool operator()(fs::directory_entry const &entry) const
         {
             return entry.path().extension() == ext;
         }
     };
-    int realloc_buffer(char **message_buf, size_t new_size);
+    int ReallocBuffer(char **message_buf, size_t new_size);
 
     /* Simple Accessors */
     fmi2Boolean fmi_valid() { return boolean_vars[FMI_BOOLEAN_VALID_IDX]; }
-    void set_fmi_valid(fmi2Boolean value) { boolean_vars[FMI_BOOLEAN_VALID_IDX]=value; }
+    void set_fmi_valid(fmi2Boolean value) { boolean_vars[FMI_BOOLEAN_VALID_IDX] = value; }
     fmi2Integer fmi_count() { return integer_vars[FMI_INTEGER_COUNT_IDX]; }
-    void set_fmi_count(fmi2Integer value) { integer_vars[FMI_INTEGER_COUNT_IDX]=value; }
+    void set_fmi_count(fmi2Integer value) { integer_vars[FMI_INTEGER_COUNT_IDX] = value; }
     string fmi_trace_path() { return string_vars[FMI_STRING_TRACE_PATH_IDX]; }
-    void set_fmi_trace_path(string value) { string_vars[FMI_STRING_TRACE_PATH_IDX]=value; }
+    void set_fmi_trace_path(string value) { string_vars[FMI_STRING_TRACE_PATH_IDX] = value; }
 
     /* Protocol Buffer Accessors */
-    void set_fmi_sensor_view_out(const osi3::SensorView& data);
-    void set_fmi_sensor_data_out(const osi3::SensorData& data);
-    void reset_fmi_sensor_view_out();
-    void reset_fmi_sensor_data_out();
+    void SetFmiSensorViewOut(const osi3::SensorView &data);
+    void SetFmiSensorDataOut(const osi3::SensorData &data);
+    void ResetFmiSensorViewOut();
+    void ResetFmiSensorDataOut();
 
 };
