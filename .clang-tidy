@@ -1,12 +1,12 @@
 ---
-Checks:            'readability-*,cppcoreguidelines-*,-cppcoreguidelines-pro-type-vararg,-cppcoreguidelines-pro-type-cstyle-cast,-cppcoreguidelines-avoid-c-arrays,-cppcoreguidelines-non-private-member-variables-in-classes,-cppcoreguidelines-macro-usage,-cppcoreguidelines-pro-bounds-pointer-arithmetic,-cppcoreguidelines-pro-bounds-array-to-pointer-decay,-cppcoreguidelines-owning-memory,-readability-useless-return-value,-readability-const-return-type-cppcoreguidelines-init-variables,-cppcoreguidelines-avoid-magic-numbers,-readability-magic-numbers'
+Checks:            'readability-*,cppcoreguidelines-*,-cppcoreguidelines-pro-type-vararg,-cppcoreguidelines-pro-type-cstyle-cast,-cppcoreguidelines-avoid-c-arrays,-cppcoreguidelines-non-private-member-variables-in-classes,-cppcoreguidelines-macro-usage,-cppcoreguidelines-pro-bounds-pointer-arithmetic,-cppcoreguidelines-pro-bounds-array-to-pointer-decay,-cppcoreguidelines-owning-memory,-readability-useless-return-value,-readability-const-return-type,-cppcoreguidelines-init-variables,-cppcoreguidelines-avoid-magic-numbers,-readability-magic-numbers'
 HeaderFilterRegex: '.*/src/(?:adp|build_system|legacy)/.*'
 AnalyzeTemporaryDtors: false
 CheckOptions:
   - key:             readability-identifier-naming.AbstractClassCases
     value:           CamelCase
   - key:             readability-identifier-naming.AbstractClassPrefix
-    value:           I
+    value:           ''
   - key:             readability-identifier-naming.AbstractClassSuffix
     value:           ''
   - key:             readability-identifier-naming.ClassCase
@@ -14,13 +14,13 @@ CheckOptions:
   - key:             readability-identifier-naming.ClassConstantCase
     value:           CamelCase
   - key:             readability-identifier-naming.ClassConstantPrefix
-    value:           k
+    value:           ''
   - key:             readability-identifier-naming.ClassConstantSuffix
     value:           ''
   - key:             readability-identifier-naming.ClassMemberCase
     value:           lower_case
   - key:             readability-identifier-naming.ClassMemberPrefix
-    value:           g_
+    value:           ''
   - key:             readability-identifier-naming.ClassMemberSuffix
     value:           ''
   - key:             readability-identifier-naming.ClassMethodCase
