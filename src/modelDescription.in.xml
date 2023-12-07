@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <fmiModelDescription
   fmiVersion="2.0"
-  modelName="OSMP BinarySVPlayer FMU"
+  modelName="OSMPTraceFilePlayer"
   guid="@FMUGUID@"
-  description="FMU that reads a binary SensorView trace file and outputs the content step by step"
+  description="FMU that reads a binary OSI trace file and outputs the content step by step"
   author="Persival"
   version="@OSMPVERSION@"
   generationTool="manual"
