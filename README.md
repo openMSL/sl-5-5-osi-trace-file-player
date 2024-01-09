@@ -1,6 +1,7 @@
 # SL-5-5 OSI Trace File Player
 
 This [FMU](https://fmi-standard.org/) is able to play binary OSI trace files.
+The trace file names have to comply to the [OSI trace file naming convention](https://opensimulationinterface.github.io/osi-antora-generator/asamosi/latest/interface/architecture/trace_file_naming.html), as the player parses the name to identify the message type (SensorView or SensorData) of the trace file.
 The folder containing the trace files has to be passed as FMI parameter _trace_path_.
 The trace file player is build according to the [ASAM Open simulation Interface (OSI)](https://github.com/OpenSimulationInterface/open-simulation-interface) and the [OSI Sensor Model Packaging (OSMP)](https://github.com/OpenSimulationInterface/osi-sensor-model-packaging) examples.
 
