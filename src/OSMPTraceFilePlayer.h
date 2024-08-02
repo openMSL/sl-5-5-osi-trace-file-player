@@ -5,6 +5,7 @@
 //
 
 #include "OSMPTraceFilePlayerConfig.h"
+
 #include <experimental/filesystem>
 
 using namespace std;
@@ -44,7 +45,7 @@ namespace fs = std::experimental::filesystem;
 /* Boolean Variables */
 #define FMI_BOOLEAN_VALID_IDX 0
 #define FMI_BOOLEAN_LAST_IDX FMI_BOOLEAN_VALID_IDX
-#define FMI_BOOLEAN_VARS (FMI_BOOLEAN_LAST_IDX+1)
+#define FMI_BOOLEAN_VARS (FMI_BOOLEAN_LAST_IDX + 1)
 
 /* Integer Variables */
 #define FMI_INTEGER_SENSORVIEW_OUT_BASELO_IDX 0
@@ -52,40 +53,40 @@ namespace fs = std::experimental::filesystem;
 #define FMI_INTEGER_SENSORVIEW_OUT_SIZE_IDX 2
 #define FMI_INTEGER_COUNT_IDX 3
 #define FMI_INTEGER_LAST_IDX FMI_INTEGER_COUNT_IDX
-#define FMI_INTEGER_VARS (FMI_INTEGER_LAST_IDX+1)
+#define FMI_INTEGER_VARS (FMI_INTEGER_LAST_IDX + 1)
 
 /* Real Variables */
 #define FMI_REAL_LAST_IDX 0
-#define FMI_REAL_VARS (FMI_REAL_LAST_IDX+1)
+#define FMI_REAL_VARS (FMI_REAL_LAST_IDX + 1)
 
 /* String Variables */
 #define FMI_STRING_TRACE_PATH_IDX 0
 #define FMI_STRING_TRACE_NAME_IDX 1
 #define FMI_STRING_LAST_IDX FMI_STRING_TRACE_NAME_IDX
-#define FMI_STRING_VARS (FMI_STRING_LAST_IDX+1)
+#define FMI_STRING_VARS (FMI_STRING_LAST_IDX + 1)
 
-#include <iostream>
-#include <fstream>
-#include <string>
 #include <cstdarg>
+#include <fstream>
+#include <iostream>
 #include <set>
+#include <string>
 #include <utility>
 
 #undef min
 #undef max
-#include "osi_sensorview.pb.h"
 #include "osi_sensordata.pb.h"
+#include "osi_sensorview.pb.h"
 
 /* FMU Class */
 class COSMPTraceFilePlayer
 {
- public:
+  public:
     /* FMI2 Interface mapped to C++ */
     COSMPTraceFilePlayer(fmi2String theinstance_name,
                          fmi2Type thefmu_type,
                          fmi2String thefmu_guid,
                          fmi2String thefmu_resource_location,
-                         const fmi2CallbackFunctions *thefunctions,
+                         const fmi2CallbackFunctions* thefunctions,
                          fmi2Boolean thevisible,
                          fmi2Boolean thelogging_on);
     ~COSMPTraceFilePlayer();
@@ -94,7 +95,7 @@ class COSMPTraceFilePlayer
                                      fmi2Type fmu_type,
                                      fmi2String fmu_guid,
                                      fmi2String fmu_resource_location,
-                                     const fmi2CallbackFunctions *functions,
+                                     const fmi2CallbackFunctions* functions,
                                      fmi2Boolean visible,
                                      fmi2Boolean logging_on);
     fmi2Status SetupExperiment(fmi2Boolean tolerance_defined, fmi2Real tolerance, fmi2Real start_time, fmi2Boolean stop_time_defined, fmi2Real stop_time);
@@ -113,7 +114,7 @@ class COSMPTraceFilePlayer
     fmi2Status SetBoolean(const fmi2ValueReference vr[], size_t nvr, const fmi2Boolean value[]);
     fmi2Status SetString(const fmi2ValueReference vr[], size_t nvr, const fmi2String value[]);
 
- protected:
+  protected:
     /* Internal Implementation */
     fmi2Status DoInit();
     fmi2Status DoStart(fmi2Boolean tolerance_defined, fmi2Real tolerance, fmi2Real start_time, fmi2Boolean stop_time_defined, fmi2Real stop_time);
@@ -128,7 +129,7 @@ class COSMPTraceFilePlayer
     static ofstream private_log_file;
 #endif
 
-    static void fmi_verbose_log_global(const char *format, ...)
+    static void fmi_verbose_log_global(const char* format, ...)
     {
 #ifdef VERBOSE_FMI_LOGGING_TRACE_FILE_PLAYER
 #ifdef PRIVATE_LOG_PATH_TRACE_FILE_PLAYER
@@ -137,7 +138,8 @@ class COSMPTraceFilePlayer
         char buffer[1024];
         if (!private_log_file.is_open())
             private_log_file.open(PRIVATE_LOG_PATH_TRACE_FILE_PLAYER, ios::out | ios::app);
-        if (private_log_file.is_open()) {
+        if (private_log_file.is_open())
+        {
 #ifdef _WIN32
             vsnprintf_s(buffer, 1024, format, ap);
 #else
@@ -150,7 +152,7 @@ class COSMPTraceFilePlayer
 #endif
     }
 
-    void InternalLog(const char *category, const char *format, va_list arg)
+    void InternalLog(const char* category, const char* format, va_list arg)
     {
 #if defined(PRIVATE_LOG_PATH_TRACE_FILE_PLAYER) || defined(PUBLIC_LOGGING_TRACE_FILE_PLAYER)
         char buffer[1024];
@@ -163,35 +165,36 @@ class COSMPTraceFilePlayer
 #ifdef PRIVATE_LOG_PATH_TRACE_FILE_PLAYER
         if (!private_log_file.is_open())
             private_log_file.open(PRIVATE_LOG_PATH_TRACE_FILE_PLAYER, ios::out | ios::app);
-        if (private_log_file.is_open()) {
+        if (private_log_file.is_open())
+        {
             private_log_file << "OSMPBinarySource" << "::" << instance_name_ << "<" << ((void*)this) << ">:" << category << ": " << buffer << endl;
             private_log_file.flush();
         }
 #endif
 #ifdef PUBLIC_LOGGING_TRACE_FILE_PLAYER
         if (logging_on_ && logging_categories_.count(category))
-            functions_.logger(functions_.componentEnvironment,instance_name_.c_str(),fmi2OK,category,buffer);
+            functions_.logger(functions_.componentEnvironment, instance_name_.c_str(), fmi2OK, category, buffer);
 #endif
 #endif
     }
 
-    void FmiVerboseLog(const char *format, ...)
+    void FmiVerboseLog(const char* format, ...)
     {
-#if  defined(VERBOSE_FMI_LOGGING_TRACE_FILE_PLAYER) && (defined(PRIVATE_LOG_PATH_TRACE_FILE_PLAYER) || defined(PUBLIC_LOGGING_TRACE_FILE_PLAYER))
+#if defined(VERBOSE_FMI_LOGGING_TRACE_FILE_PLAYER) && (defined(PRIVATE_LOG_PATH_TRACE_FILE_PLAYER) || defined(PUBLIC_LOGGING_TRACE_FILE_PLAYER))
         va_list ap;
         va_start(ap, format);
-        internal_log("FMI",format,ap);
+        internal_log("FMI", format, ap);
         va_end(ap);
 #endif
     }
 
     /* Normal Logging */
-    void NormalLog(const char *category, const char *format, ...)
+    void NormalLog(const char* category, const char* format, ...)
     {
 #if defined(PRIVATE_LOG_PATH_TRACE_FILE_PLAYER) || defined(PUBLIC_LOGGING_TRACE_FILE_PLAYER)
         va_list ap;
         va_start(ap, format);
-        InternalLog(category,format,ap);
+        InternalLog(category, format, ap);
         va_end(ap);
 #endif
     }
@@ -209,20 +212,17 @@ class COSMPTraceFilePlayer
     fmi2Integer integer_vars_[FMI_INTEGER_VARS];
     fmi2Real real_vars_[FMI_REAL_VARS];
     string string_vars_[FMI_STRING_VARS];
-    string *current_buffer_;
-    string *last_buffer_;
+    string* current_buffer_;
+    string* last_buffer_;
     long total_length_ = 0;
     long played_frames_ = 0;
     struct file_extension_is
     {
         std::string ext;
         explicit file_extension_is(std::string ext) : ext(std::move(ext)) {}
-        bool operator()(fs::directory_entry const &entry) const
-        {
-            return entry.path().extension() == ext;
-        }
+        bool operator()(fs::directory_entry const& entry) const { return entry.path().extension() == ext; }
     };
-    int ReallocBuffer(char **message_buf, size_t new_size);
+    int ReallocBuffer(char** message_buf, size_t new_size);
 
     /* Simple Accessors */
     fmi2Boolean FmiValid() { return boolean_vars_[FMI_BOOLEAN_VALID_IDX]; }
@@ -233,8 +233,8 @@ class COSMPTraceFilePlayer
     string FmiTraceName() { return string_vars_[FMI_STRING_TRACE_NAME_IDX]; }
 
     /* Protocol Buffer Accessors */
-    void SetFmiSensorViewOut(const osi3::SensorView &data);
-    void SetFmiSensorDataOut(const osi3::SensorData &data);
+    void SetFmiSensorViewOut(const osi3::SensorView& data);
+    void SetFmiSensorDataOut(const osi3::SensorData& data);
 
     void ResetFmiSensorViewOut();
     void ResetFmiSensorDataOut();
