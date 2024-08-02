@@ -218,14 +218,19 @@ fmi2Status COSMPTraceFilePlayer::DoCalc(fmi2Real current_communication_point, fm
 
     NormalLog("OSI", "Playing binary SensorView at %f for %f (step size %f)", current_communication_point, time, communication_step_size);
 
-    // Get first .osi file
     fs::path dir = FmiTracePath();
-    std::vector<fs::directory_entry> entries;
-    fs::directory_iterator di(dir);
-    fs::directory_iterator end;
-    std::copy_if(di, end, std::back_inserter(entries),
-                 file_extension_is(".osi"));
-    std::string binary_file_name = entries.begin()->path().string();
+    string binary_file_name = dir / FmiTraceName();
+
+    if (binary_file_name.empty())
+    {
+        // Get first .osi file in directory
+        std::vector<fs::directory_entry> entries;
+        fs::directory_iterator di(dir);
+        fs::directory_iterator end;
+        std::copy_if(di, end, std::back_inserter(entries),
+                     file_extension_is(".osi"));
+        binary_file_name = entries.begin()->path().string();
+    }
 
     std::size_t sv_found = binary_file_name.find("_sv_");
     std::size_t sd_found = binary_file_name.find("_sd_");

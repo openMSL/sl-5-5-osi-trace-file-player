@@ -8,6 +8,17 @@ The trace file player is build according to the [ASAM Open simulation Interface 
 
 An exemplary trace file is available in folder _trace_file_examples_.
 
+## Parameterization
+
+The following FMI parameters can be set.
+At least the trace_path has to be set.
+Otherwise, the FMU will return with an error.
+
+| Type   | Parameter    | Default | Description                                                                                                   |
+|--------|--------------|---------|---------------------------------------------------------------------------------------------------------------|
+| String | `trace_path` | _""_    | Path to the directory containing one or more OSI trace files                                                  |
+| String | `trace_name` | _""_    | Filename of the trace file to be played. If empty, the first OSI trace file in the given directory is played. |
+
 ## Installation
 
 ### Dependencies

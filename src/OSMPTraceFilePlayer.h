@@ -60,7 +60,8 @@ namespace fs = std::experimental::filesystem;
 
 /* String Variables */
 #define FMI_STRING_TRACE_PATH_IDX 0
-#define FMI_STRING_LAST_IDX FMI_STRING_TRACE_PATH_IDX
+#define FMI_STRING_TRACE_NAME_IDX 1
+#define FMI_STRING_LAST_IDX FMI_STRING_TRACE_NAME_IDX
 #define FMI_STRING_VARS (FMI_STRING_LAST_IDX+1)
 
 #include <iostream>
@@ -229,7 +230,7 @@ class COSMPTraceFilePlayer
     fmi2Integer FmiCount() { return integer_vars_[FMI_INTEGER_COUNT_IDX]; }
     void SetFmiCount(fmi2Integer value) { integer_vars_[FMI_INTEGER_COUNT_IDX] = value; }
     string FmiTracePath() { return string_vars_[FMI_STRING_TRACE_PATH_IDX]; }
-    void SetFmiTracePath(string value) { string_vars_[FMI_STRING_TRACE_PATH_IDX] = value; }
+    string FmiTraceName() { return string_vars_[FMI_STRING_TRACE_NAME_IDX]; }
 
     /* Protocol Buffer Accessors */
     void SetFmiSensorViewOut(const osi3::SensorView &data);
