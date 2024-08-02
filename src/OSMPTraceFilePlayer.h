@@ -158,19 +158,19 @@ class COSMPTraceFilePlayer
         vsnprintf_s(buffer, 1024, format, arg);
 #else
         vsnprintf(buffer, 1024, format, arg);
-        std::cout << "OSMPTraceFilePlayer" << "::" << instanceName << "<" << ((void*)this) << ">:" << category << ": " << buffer << std::endl;
+        std::cout << "OSMPTraceFilePlayer" << "::" << instance_name_ << "<" << ((void*)this) << ">:" << category << ": " << buffer << std::endl;
 #endif
 #ifdef PRIVATE_LOG_PATH_TRACE_FILE_PLAYER
         if (!private_log_file.is_open())
             private_log_file.open(PRIVATE_LOG_PATH_TRACE_FILE_PLAYER, ios::out | ios::app);
         if (private_log_file.is_open()) {
-            private_log_file << "OSMPBinarySource" << "::" << instanceName << "<" << ((void*)this) << ">:" << category << ": " << buffer << endl;
+            private_log_file << "OSMPBinarySource" << "::" << instance_name_ << "<" << ((void*)this) << ">:" << category << ": " << buffer << endl;
             private_log_file.flush();
         }
 #endif
 #ifdef PUBLIC_LOGGING_TRACE_FILE_PLAYER
-        if (loggingOn && loggingCategories.count(category))
-            functions.logger(functions.componentEnvironment,instanceName.c_str(),fmi2OK,category,buffer);
+        if (logging_on_ && logging_categories_.count(category))
+            functions_.logger(functions_.componentEnvironment,instance_name_.c_str(),fmi2OK,category,buffer);
 #endif
 #endif
     }
@@ -191,7 +191,7 @@ class COSMPTraceFilePlayer
 #if defined(PRIVATE_LOG_PATH_TRACE_FILE_PLAYER) || defined(PUBLIC_LOGGING_TRACE_FILE_PLAYER)
         va_list ap;
         va_start(ap, format);
-        internal_log(category,format,ap);
+        InternalLog(category,format,ap);
         va_end(ap);
 #endif
     }
