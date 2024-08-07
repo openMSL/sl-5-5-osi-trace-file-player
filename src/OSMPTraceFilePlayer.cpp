@@ -221,7 +221,7 @@ fmi2Status COSMPTraceFilePlayer::DoCalc(fmi2Real current_communication_point, fm
     fs::path dir = FmiTracePath();
     string binary_file_name = dir / FmiTraceName();
 
-    if (binary_file_name.empty())
+    if (FmiTraceName().empty())
     {
         // Get first .osi file in directory
         std::vector<fs::directory_entry> entries;
