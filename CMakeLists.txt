@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(OSMPTraceFilePlayer)
+project(sl-5-5-osi-trace-file-player)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,9 +11,9 @@ set(DEBUG_BREAKS_TRACE_FILE_PLAYER OFF CACHE BOOL "Enable debugger traps for deb
 
 if(PRIVATE_LOGGING_TRACE_FILE_PLAYER)
   if(WIN32)
-    set(PRIVATE_LOG_PATH_TRACE_FILE_PLAYER "C:/TEMP/OSMPTraceFilePlayerLog.log" CACHE FILEPATH "Path to write private log file to")
+    set(PRIVATE_LOG_PATH_TRACE_FILE_PLAYER "C:/TEMP/sl-5-5-osi-trace-file-player.log" CACHE FILEPATH "Path to write private log file to")
   else()
-    set(PRIVATE_LOG_PATH_TRACE_FILE_PLAYER "/tmp/OSMPTraceFilePlayerLog.log" CACHE FILEPATH "Path to write private log file to")
+    set(PRIVATE_LOG_PATH_TRACE_FILE_PLAYER "/tmp/sl-5-5-osi-trace-file-player.log" CACHE FILEPATH "Path to write private log file to")
   endif()
   file(TO_NATIVE_PATH ${PRIVATE_LOG_PATH_TRACE_FILE_PLAYER} PRIVATE_LOG_PATH_TRACE_FILE_PLAYER_NATIVE)
   string(REPLACE "\\" "\\\\" PRIVATE_LOG_PATH_TRACE_FILE_PLAYER ${PRIVATE_LOG_PATH_TRACE_FILE_PLAYER_NATIVE})

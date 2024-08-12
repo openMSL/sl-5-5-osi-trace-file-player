@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <fmiModelDescription
   fmiVersion="2.0"
-  modelName="OSMPTraceFilePlayer"
+  modelName="sl-5-5-osi-trace-file-player"
   guid="@FMUGUID@"
   description="FMU that reads a binary OSI trace file and outputs the content step by step"
   author="Persival"
@@ -10,7 +10,7 @@
   generationDateAndTime="@FMUTIMESTAMP@"
   variableNamingConvention="structured">
   <CoSimulation
-    modelIdentifier="OSMPTraceFilePlayer"
+    modelIdentifier="sl-5-5-osi-trace-file-player"
     canHandleVariableCommunicationStepSize="true"
     canNotUseMemoryManagementFunctions="true">
     <SourceFiles>
