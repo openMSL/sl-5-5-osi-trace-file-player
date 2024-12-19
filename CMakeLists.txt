@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 project(sl-5-5-osi-trace-file-player)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(LINK_WITH_SHARED_OSI OFF CACHE BOOL "Link FMU with shared OSI library instead of statically linking")
 set(PUBLIC_LOGGING_TRACE_FILE_PLAYER OFF CACHE BOOL "Enable logging via FMI logger")
@@ -36,14 +36,24 @@ endif()
 
 set(OSMPVERSION "1.2.0" CACHE STRING "OSMP Version String")
 
-add_subdirectory( lib/open-simulation-interface )
-
+# OSI
+add_subdirectory(lib/open-simulation-interface)
+list(APPEND CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/lib/open-simulation-interface)
 get_directory_property(OSI_VERSION_MAJOR DIRECTORY lib/open-simulation-interface DEFINITION VERSION_MAJOR)
 get_directory_property(OSI_VERSION_MINOR DIRECTORY lib/open-simulation-interface DEFINITION VERSION_MINOR)
 get_directory_property(OSI_VERSION_PATCH DIRECTORY lib/open-simulation-interface DEFINITION VERSION_PATCH)
 set(OSIVERSION "${OSI_VERSION_MAJOR}.${OSI_VERSION_MINOR}.${OSI_VERSION_PATCH}")
 
+# fmi
+include_directories( lib/fmi2/headers )
+
+# asam-osi-utilities
+set(USE_EXTERNAL_OSI ON)
+add_subdirectory(lib/asam-osi-utilities EXCLUDE_FROM_ALL)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/asam-osi-utilities/include)
+set_target_properties(OSIUtilities PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+
 set(FMU_INSTALL_DIR "${CMAKE_BINARY_DIR}" CACHE PATH "Target directory for generated FMU")
 
-include_directories( lib/fmi2/headers )
 add_subdirectory( src )

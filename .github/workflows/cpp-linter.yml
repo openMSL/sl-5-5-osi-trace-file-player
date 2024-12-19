@@ -11,9 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Model
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
-        submodules: true
+        submodules: recursive
 
     - name: Cache Dependencies
       id: cache-depends

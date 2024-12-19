@@ -6,10 +6,10 @@
 
 #include "OSMPTraceFilePlayerConfig.h"
 
-#include <experimental/filesystem>
+#include <filesystem>
 
 using namespace std;
-namespace fs = std::experimental::filesystem;
+
 
 #ifndef FMU_SHARED_OBJECT
 #define FMI2_FUNCTION_PREFIX OSMPTraceFilePlayer_
@@ -76,6 +76,8 @@ namespace fs = std::experimental::filesystem;
 #undef max
 #include "osi_sensordata.pb.h"
 #include "osi_sensorview.pb.h"
+#include "osi-utilities/tracefile/Reader.h"
+
 
 /* FMU Class */
 class COSMPTraceFilePlayer
@@ -212,16 +214,9 @@ class COSMPTraceFilePlayer
     fmi2Integer integer_vars_[FMI_INTEGER_VARS];
     fmi2Real real_vars_[FMI_REAL_VARS];
     string string_vars_[FMI_STRING_VARS];
-    string* current_buffer_;
-    string* last_buffer_;
-    long total_length_ = 0;
-    long played_frames_ = 0;
-    struct file_extension_is
-    {
-        std::string ext;
-        explicit file_extension_is(std::string ext) : ext(std::move(ext)) {}
-        bool operator()(fs::directory_entry const& entry) const { return entry.path().extension() == ext; }
-    };
+    std::unique_ptr<osi3::TraceFileReader> trace_file_reader_;
+
+
     int ReallocBuffer(char** message_buf, size_t new_size);
 
     /* Simple Accessors */

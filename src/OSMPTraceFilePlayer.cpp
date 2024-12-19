@@ -5,6 +5,9 @@
 //
 
 #include "OSMPTraceFilePlayer.h"
+#include "osi-utilities/tracefile/Reader.h"
+#include <filesystem>
+
 
 /*
  * Debug Breaks
@@ -43,10 +46,32 @@
 #include <cmath>
 #include <cstdint>
 #include <ctime>
+#include <filesystem>
 #include <string>
 
+#include <osi-utilities/tracefile/Reader.h>
+
+#include <osi-utilities/tracefile/reader/MCAPTraceFileReader.h>
+#include <osi-utilities/tracefile/reader/SingleChannelBinaryTraceFileReader.h>
+#include <osi-utilities/tracefile/reader/TXTHTraceFileReader.h>
+
+class TraceFileFactory {
+public:
+    static std::unique_ptr<osi3::TraceFileReader> createReader(const std::filesystem::path& path) {
+        if (path.extension().string() == ".osi") {
+            return std::make_unique<osi3::SingleChannelBinaryTraceFileReader>();
+        }
+        if (path.extension().string() == ".mcap") {
+            return std::make_unique<osi3::MCAPTraceFileReader>();
+        }
+        if (path.extension().string() == ".txth") {
+            return std::make_unique<osi3::TXTHTraceFileReader>();
+        }
+        throw std::invalid_argument("Unsupported format: " + path.extension().string());
+    }
+};
+
 using namespace std;
-namespace fs = std::experimental::filesystem;
 
 #ifdef PRIVATE_LOG_PATH_TRACE_FILE_PLAYER
 ofstream COSMPTraceFilePlayer::private_log_file;
@@ -115,7 +140,7 @@ void EncodePointerToInteger(const void* ptr, fmi2Integer& hi, fmi2Integer& lo)
 
 void COSMPTraceFilePlayer::SetFmiSensorViewOut(const osi3::SensorView& data)
 {
-    data.SerializeToString(current_buffer_);
+    /*data.SerializeToString(current_buffer_);
     EncodePointerToInteger(current_buffer_->data(), integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASEHI_IDX], integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASELO_IDX]);
     integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_SIZE_IDX] = (fmi2Integer)current_buffer_->length();
     NormalLog("OSMP",
@@ -123,12 +148,12 @@ void COSMPTraceFilePlayer::SetFmiSensorViewOut(const osi3::SensorView& data)
               integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASEHI_IDX],
               integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASELO_IDX],
               current_buffer_->data());
-    swap(current_buffer_, last_buffer_);
+    swap(current_buffer_, last_buffer_);*/
 }
 
 void COSMPTraceFilePlayer::SetFmiSensorDataOut(const osi3::SensorData& data)
 {
-    data.SerializeToString(current_buffer_);
+    /*data.SerializeToString(current_buffer_);
     EncodePointerToInteger(current_buffer_->data(), integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASEHI_IDX], integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASELO_IDX]);
     integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_SIZE_IDX] = (fmi2Integer)current_buffer_->length();
     NormalLog("OSMP",
@@ -136,7 +161,7 @@ void COSMPTraceFilePlayer::SetFmiSensorDataOut(const osi3::SensorData& data)
               integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASEHI_IDX],
               integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASELO_IDX],
               current_buffer_->data());
-    swap(current_buffer_, last_buffer_);
+    swap(current_buffer_, last_buffer_);*/
 }
 
 void COSMPTraceFilePlayer::ResetFmiSensorViewOut()
@@ -206,140 +231,73 @@ fmi2Status COSMPTraceFilePlayer::DoExitInitializationMode()
 {
     DEBUGBREAK();
 
+    const std::filesystem::path folder_path = FmiTracePath();
+    std::string trace_file_name = FmiTraceName();
+    if (trace_file_name.empty())
+    {
+        for (const auto& entry : std::filesystem::directory_iterator(folder_path)) {
+            if (entry.path().extension() == ".osi") {
+                trace_file_name = entry.path().string();
+                break;
+            }
+        }
+        throw std::runtime_error("No trace file found in " + folder_path.string());
+    }
+
+    const std::filesystem::path trace_path = folder_path / trace_file_name;
+
+    trace_file_reader_ = osi3::TraceFileFactory::createReader(trace_path);
+
+    if (!trace_file_reader_->Open(trace_path))
+    {
+
+        return fmi2Fatal;
+    }
     return fmi2OK;
 }
 
 fmi2Status COSMPTraceFilePlayer::DoCalc(fmi2Real current_communication_point, fmi2Real communication_step_size, fmi2Boolean no_set_fmu_state_prior_to_current_point)
 {
-    DEBUGBREAK();
-    std::chrono::milliseconds start_source_calc = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
 
-    double time = current_communication_point + communication_step_size;
-
-    NormalLog("OSI", "Playing binary SensorView at %f for %f (step size %f)", current_communication_point, time, communication_step_size);
-
-    fs::path dir = FmiTracePath();
-    string binary_file_name = dir / FmiTraceName();
-
-    if (FmiTraceName().empty())
+    if (!trace_file_reader_->HasNext())
     {
-        // Get first .osi file in directory
-        std::vector<fs::directory_entry> entries;
-        fs::directory_iterator di(dir);
-        fs::directory_iterator end;
-        std::copy_if(di, end, std::back_inserter(entries), file_extension_is(".osi"));
-        binary_file_name = entries.begin()->path().string();
+        NormalLog("OSI", "End of trace file reached.");
+        return fmi2OK;
     }
 
-    std::size_t sv_found = binary_file_name.find("_sv_");
-    std::size_t sd_found = binary_file_name.find("_sd_");
-    NormalLog("OSI", "Playing binary trace file from %s", binary_file_name.c_str());
-    NormalLog("OSI", "At %f for %f (step size %f)", current_communication_point, time, communication_step_size);
-    if ((sv_found == std::string::npos) && (sd_found == std::string::npos))
-    {
-        NormalLog("OSI", "No SensorView or SensorData found in proto binary file!!!");
-        return fmi2Error;
+    const auto reading_result = trace_file_reader_->ReadMessage();
+    if (!reading_result) {
+        std::cerr << "Error reading message." << std::endl;
+        return fmi2Fatal;
     }
 
-    FILE* binary_file = fopen(binary_file_name.c_str(), "rb");
-    if (binary_file == nullptr)
+    switch (reading_result->message_type)
     {
-        perror("Open failed");
-    }
-
-    int is_ok = 1;
-    size_t buf_size = 0;
-    typedef unsigned int MessageSizeT;
-    char* message_buf = nullptr;
-    fseek(binary_file, 4 * played_frames_ + total_length_, SEEK_SET);
-    MessageSizeT size = 0;
-    uint ret = fread(&size, sizeof(MessageSizeT), 1, binary_file);
-    if (ret == 0)
-    {
-        NormalLog("OSI", "End of trace!!!");
-    }
-    else if (ret != 1)
-    {
-        NormalLog("OSI", "Failed to read the size of the message!!!");
-        is_ok = 0;
-    }
-    if ((is_ok != 0) && size > buf_size)
-    {
-        size_t new_size = size * 2;
-        if (ReallocBuffer(&message_buf, new_size) < 0)
+        case osi3::ReaderTopLevelMessage::kGroundTruth:
         {
-            is_ok = 0;
-            NormalLog("OSI", "Failed to allocate memory!!!");
+            auto* const ground_truth = dynamic_cast<osi3::GroundTruth*>(reading_result->message.get());
+            std::cerr << "GroundTruth currently not supported" << std::endl;
+            return fmi2Fatal;
+        }
+        case osi3::ReaderTopLevelMessage::kSensorData:
+        {
+            auto* const sensor_data = dynamic_cast<osi3::SensorData*>(reading_result->message.get());
+            SetFmiSensorDataOut(*sensor_data);
+            break;
+        }
+        case osi3::ReaderTopLevelMessage::kSensorView:
+        {
+            auto* const sensor_view = dynamic_cast<osi3::SensorView*>(reading_result->message.get());
+            SetFmiSensorViewOut(*sensor_view);
+            break;
+        }
+        default:
+        {
+            std::cerr << "Could not determine type of message" << std::endl;
+            return fmi2Fatal;
         }
     }
-    if (is_ok != 0)
-    {
-        size_t already_read = 0;
-        while (already_read < size)
-        {
-            fseek(binary_file, 4 * (played_frames_ + 1) + total_length_, SEEK_SET);
-            uint res = fread(message_buf + already_read, sizeof(message_buf[0]), size - already_read, binary_file);
-            if (res == 0)
-            {
-                NormalLog("OSI", "Unexpected end of file!!!");
-                is_ok = 0;
-                NormalLog("OSI", "Failed to read the message!!!");
-            }
-            already_read += res;
-        }
-    }
-
-    fclose(binary_file);
-
-    if (sv_found != std::string::npos)
-    {
-        osi3::SensorView current_out;
-        if (is_ok != 0)
-        {
-            std::string message_str(message_buf, message_buf + size);
-            if (!current_out.ParseFromString(message_str))
-            {
-                NormalLog("OSI", "Trace file not parsed correctly!!!");
-            }
-        }
-        NormalLog("OSI", "Buffer length at frame %i: %i", played_frames_, size);
-
-        total_length_ = total_length_ + size;
-        NormalLog("OSI", "Total length after frame %i: %i", played_frames_, total_length_);
-        played_frames_ = played_frames_ + 1;
-
-        SetFmiSensorViewOut(current_out);
-        SetFmiValid(1);
-        if (current_out.has_global_ground_truth())
-        {
-            SetFmiCount(current_out.global_ground_truth().moving_object_size());
-        }
-    }
-    else if (sd_found != std::string::npos)
-    {
-        osi3::SensorData current_out;
-        if (is_ok != 0)
-        {
-            std::string message_str(message_buf, message_buf + size);
-            if (!current_out.ParseFromString(message_str))
-            {
-                NormalLog("OSI", "Trace file not parsed correctly!!!");
-            }
-        }
-        NormalLog("OSI", "Buffer length at frame %i: %i", played_frames_, size);
-
-        total_length_ = total_length_ + size;
-        NormalLog("OSI", "Total length after frame %i: %i", played_frames_, total_length_);
-        played_frames_ = played_frames_ + 1;
-
-        SetFmiSensorDataOut(current_out);
-        SetFmiValid(1);
-        if (current_out.sensor_view(0).has_global_ground_truth())
-        {
-            SetFmiCount(current_out.sensor_view(0).global_ground_truth().moving_object_size());
-        }
-    }
-
+    SetFmiValid(1);
     return fmi2OK;
 }
 
@@ -373,8 +331,7 @@ COSMPTraceFilePlayer::COSMPTraceFilePlayer(fmi2String theinstance_name,
       visible_(thevisible != 0),
       logging_on_(thelogging_on != 0)
 {
-    current_buffer_ = new string();
-    last_buffer_ = new string();
+
     logging_categories_.clear();
     logging_categories_.insert("FMI");
     logging_categories_.insert("OSMP");
@@ -383,8 +340,7 @@ COSMPTraceFilePlayer::COSMPTraceFilePlayer(fmi2String theinstance_name,
 
 COSMPTraceFilePlayer::~COSMPTraceFilePlayer()
 {
-    delete current_buffer_;
-    delete last_buffer_;
+
 }
 
 fmi2Status COSMPTraceFilePlayer::SetDebugLogging(fmi2Boolean thelogging_on, size_t n_categories, const fmi2String categories[])
