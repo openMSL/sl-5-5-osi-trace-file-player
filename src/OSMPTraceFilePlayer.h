@@ -115,6 +115,8 @@ class COSMPTraceFilePlayer
     fmi2Status SetInteger(const fmi2ValueReference vr[], size_t nvr, const fmi2Integer value[]);
     fmi2Status SetBoolean(const fmi2ValueReference vr[], size_t nvr, const fmi2Boolean value[]);
     fmi2Status SetString(const fmi2ValueReference vr[], size_t nvr, const fmi2String value[]);
+    fmi2Status GetBooleanStatus(fmi2StatusKind s, fmi2Boolean* value);
+
 
   protected:
     /* Internal Implementation */
@@ -214,6 +216,8 @@ class COSMPTraceFilePlayer
     fmi2Integer integer_vars_[FMI_INTEGER_VARS];
     fmi2Real real_vars_[FMI_REAL_VARS];
     string string_vars_[FMI_STRING_VARS];
+    string* current_buffer_;
+    string* last_buffer_;
     std::unique_ptr<osi3::TraceFileReader> trace_file_reader_;
 
 

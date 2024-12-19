@@ -55,21 +55,6 @@
 #include <osi-utilities/tracefile/reader/SingleChannelBinaryTraceFileReader.h>
 #include <osi-utilities/tracefile/reader/TXTHTraceFileReader.h>
 
-class TraceFileFactory {
-public:
-    static std::unique_ptr<osi3::TraceFileReader> createReader(const std::filesystem::path& path) {
-        if (path.extension().string() == ".osi") {
-            return std::make_unique<osi3::SingleChannelBinaryTraceFileReader>();
-        }
-        if (path.extension().string() == ".mcap") {
-            return std::make_unique<osi3::MCAPTraceFileReader>();
-        }
-        if (path.extension().string() == ".txth") {
-            return std::make_unique<osi3::TXTHTraceFileReader>();
-        }
-        throw std::invalid_argument("Unsupported format: " + path.extension().string());
-    }
-};
 
 using namespace std;
 
@@ -140,7 +125,7 @@ void EncodePointerToInteger(const void* ptr, fmi2Integer& hi, fmi2Integer& lo)
 
 void COSMPTraceFilePlayer::SetFmiSensorViewOut(const osi3::SensorView& data)
 {
-    /*data.SerializeToString(current_buffer_);
+    data.SerializeToString(current_buffer_);
     EncodePointerToInteger(current_buffer_->data(), integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASEHI_IDX], integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASELO_IDX]);
     integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_SIZE_IDX] = (fmi2Integer)current_buffer_->length();
     NormalLog("OSMP",
@@ -148,12 +133,12 @@ void COSMPTraceFilePlayer::SetFmiSensorViewOut(const osi3::SensorView& data)
               integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASEHI_IDX],
               integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASELO_IDX],
               current_buffer_->data());
-    swap(current_buffer_, last_buffer_);*/
+    swap(current_buffer_, last_buffer_);
 }
 
 void COSMPTraceFilePlayer::SetFmiSensorDataOut(const osi3::SensorData& data)
 {
-    /*data.SerializeToString(current_buffer_);
+    data.SerializeToString(current_buffer_);
     EncodePointerToInteger(current_buffer_->data(), integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASEHI_IDX], integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASELO_IDX]);
     integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_SIZE_IDX] = (fmi2Integer)current_buffer_->length();
     NormalLog("OSMP",
@@ -161,7 +146,7 @@ void COSMPTraceFilePlayer::SetFmiSensorDataOut(const osi3::SensorData& data)
               integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASEHI_IDX],
               integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASELO_IDX],
               current_buffer_->data());
-    swap(current_buffer_, last_buffer_);*/
+    swap(current_buffer_, last_buffer_);
 }
 
 void COSMPTraceFilePlayer::ResetFmiSensorViewOut()
@@ -246,7 +231,7 @@ fmi2Status COSMPTraceFilePlayer::DoExitInitializationMode()
 
     const std::filesystem::path trace_path = folder_path / trace_file_name;
 
-    trace_file_reader_ = osi3::TraceFileFactory::createReader(trace_path);
+    trace_file_reader_ = osi3::TraceFileReaderFactory::createReader(trace_path);
 
     if (!trace_file_reader_->Open(trace_path))
     {
@@ -261,8 +246,8 @@ fmi2Status COSMPTraceFilePlayer::DoCalc(fmi2Real current_communication_point, fm
 
     if (!trace_file_reader_->HasNext())
     {
-        NormalLog("OSI", "End of trace file reached.");
-        return fmi2OK;
+        std::cerr << "End of trace file reached (experiment stopTime longer than tracefile)" << std::endl;
+        return fmi2Discard;
     }
 
     const auto reading_result = trace_file_reader_->ReadMessage();
@@ -307,6 +292,15 @@ fmi2Status COSMPTraceFilePlayer::DoTerm()
     return fmi2OK;
 }
 
+fmi2Status COSMPTraceFilePlayer::GetBooleanStatus(fmi2StatusKind s, fmi2Boolean* value)
+{
+    if (s == fmi2Terminated)
+    {
+        return trace_file_reader_->HasNext() ?  fmi2Discard: fmi2OK;
+    }
+    return fmi2Discard;
+}
+
 void COSMPTraceFilePlayer::DoFree()
 {
     DEBUGBREAK();
@@ -330,7 +324,10 @@ COSMPTraceFilePlayer::COSMPTraceFilePlayer(fmi2String theinstance_name,
       functions_(*thefunctions),
       visible_(thevisible != 0),
       logging_on_(thelogging_on != 0)
+
 {
+    current_buffer_ = new string();
+    last_buffer_ = new string();
 
     logging_categories_.clear();
     logging_categories_.insert("FMI");
@@ -802,7 +799,8 @@ FMI2_Export fmi2Status fmi2GetIntegerStatus(fmi2Component c, const fmi2StatusKin
 
 FMI2_Export fmi2Status fmi2GetBooleanStatus(fmi2Component c, const fmi2StatusKind s, fmi2Boolean* value)
 {
-    return fmi2Discard;
+    auto* myc = (COSMPTraceFilePlayer*)c;
+    return myc->GetBooleanStatus(s, value);
 }
 
 FMI2_Export fmi2Status fmi2GetStringStatus(fmi2Component c, const fmi2StatusKind s, fmi2String* value)
