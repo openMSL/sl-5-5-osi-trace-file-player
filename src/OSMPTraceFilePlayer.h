@@ -9,7 +9,6 @@
 
 using namespace std;
 
-
 #ifndef FMU_SHARED_OBJECT
 #define FMI2_FUNCTION_PREFIX OSMPTraceFilePlayer_
 #endif
@@ -70,10 +69,9 @@ using namespace std;
 
 #undef min
 #undef max
+#include "osi-utilities/tracefile/Reader.h"
 #include "osi_sensordata.pb.h"
 #include "osi_sensorview.pb.h"
-#include "osi-utilities/tracefile/Reader.h"
-
 
 /* FMU Class */
 class COSMPTraceFilePlayer
@@ -112,7 +110,6 @@ class COSMPTraceFilePlayer
     fmi2Status SetBoolean(const fmi2ValueReference vr[], size_t nvr, const fmi2Boolean value[]);
     fmi2Status SetString(const fmi2ValueReference vr[], size_t nvr, const fmi2String value[]);
     fmi2Status GetBooleanStatus(fmi2StatusKind s, fmi2Boolean* value) const;
-
 
   protected:
     /* Internal Implementation */
@@ -215,7 +212,6 @@ class COSMPTraceFilePlayer
     string* current_buffer_;
     string* last_buffer_;
     std::unique_ptr<osi3::TraceFileReader> trace_file_reader_;
-
 
     int ReallocBuffer(char** message_buf, size_t new_size);
 

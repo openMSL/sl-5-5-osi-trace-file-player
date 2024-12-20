@@ -5,9 +5,10 @@
 //
 
 #include "OSMPTraceFilePlayer.h"
-#include "osi-utilities/tracefile/Reader.h"
+
 #include <filesystem>
 
+#include "osi-utilities/tracefile/Reader.h"
 
 /*
  * Debug Breaks
@@ -47,7 +48,6 @@
 #include <cstdint>
 #include <string>
 
-
 using namespace std;
 
 #ifdef PRIVATE_LOG_PATH_TRACE_FILE_PLAYER
@@ -57,7 +57,6 @@ ofstream COSMPTraceFilePlayer::private_log_file;
 /*
  * ProtocolBuffer Accessors
  */
-
 
 void* DecodeIntegerToPointer(fmi2Integer hi, fmi2Integer lo)
 {
@@ -153,25 +152,25 @@ fmi2Status COSMPTraceFilePlayer::DoInit()
     DEBUGBREAK();
 
     /* Booleans */
-    for (int & boolean_var : boolean_vars_)
+    for (int& boolean_var : boolean_vars_)
     {
         boolean_var = fmi2False;
     }
 
     /* Integers */
-    for (int & integer_var : integer_vars_)
+    for (int& integer_var : integer_vars_)
     {
         integer_var = 0;
     }
 
     /* Reals */
-    for (double & real_var : real_vars_)
+    for (double& real_var : real_vars_)
     {
         real_var = 0.0;
     }
 
     /* Strings */
-    for (auto & string_var : string_vars_)
+    for (auto& string_var : string_vars_)
     {
         string_var = "";
     }
@@ -201,15 +200,18 @@ fmi2Status COSMPTraceFilePlayer::DoExitInitializationMode()
     std::string trace_file_name = FmiTraceName();
     if (trace_file_name.empty())
     {
-        for (const auto& entry : std::filesystem::directory_iterator(folder_path)) {
-            if (entry.path().extension() == ".osi") {
+        for (const auto& entry : std::filesystem::directory_iterator(folder_path))
+        {
+            if (entry.path().extension() == ".osi")
+            {
                 trace_file_name = entry.path().string();
                 break;
             }
         }
     }
 
-    if (trace_file_name.empty()) {
+    if (trace_file_name.empty())
+    {
         throw std::runtime_error("No trace file found in " + folder_path.string());
     }
 
@@ -235,33 +237,30 @@ fmi2Status COSMPTraceFilePlayer::DoCalc(fmi2Real current_communication_point, fm
     }
 
     const auto reading_result = trace_file_reader_->ReadMessage();
-    if (!reading_result) {
+    if (!reading_result)
+    {
         std::cerr << "Error reading message." << std::endl;
         return fmi2Fatal;
     }
 
     switch (reading_result->message_type)
     {
-        case osi3::ReaderTopLevelMessage::kGroundTruth:
-        {
-            auto* const ground_truth = dynamic_cast<osi3::GroundTruth*>(reading_result->message.get()); // NOLINT
+        case osi3::ReaderTopLevelMessage::kGroundTruth: {
+            auto* const ground_truth = dynamic_cast<osi3::GroundTruth*>(reading_result->message.get());  // NOLINT
             std::cerr << "GroundTruth currently not supported" << std::endl;
             return fmi2Fatal;
         }
-        case osi3::ReaderTopLevelMessage::kSensorData:
-        {
+        case osi3::ReaderTopLevelMessage::kSensorData: {
             auto* const sensor_data = dynamic_cast<osi3::SensorData*>(reading_result->message.get());
             SetFmiSensorDataOut(*sensor_data);
             break;
         }
-        case osi3::ReaderTopLevelMessage::kSensorView:
-        {
+        case osi3::ReaderTopLevelMessage::kSensorView: {
             auto* const sensor_view = dynamic_cast<osi3::SensorView*>(reading_result->message.get());
             SetFmiSensorViewOut(*sensor_view);
             break;
         }
-        default:
-        {
+        default: {
             std::cerr << "Could not determine type of message" << std::endl;
             return fmi2Fatal;
         }
@@ -280,7 +279,7 @@ fmi2Status COSMPTraceFilePlayer::GetBooleanStatus(fmi2StatusKind s, fmi2Boolean*
 {
     if (s == fmi2Terminated)
     {
-        return trace_file_reader_->HasNext() ?  fmi2Discard: fmi2OK;
+        return trace_file_reader_->HasNext() ? fmi2Discard : fmi2OK;
     }
     return fmi2Discard;
 }
@@ -376,13 +375,17 @@ fmi2Component COSMPTraceFilePlayer::Instantiate(fmi2String instance_name,
     return (fmi2Component)myc;
 }
 
-fmi2Status COSMPTraceFilePlayer::SetupExperiment(fmi2Boolean tolerance_defined, fmi2Real tolerance, fmi2Real start_time, fmi2Boolean stop_time_defined, fmi2Real stop_time)  // NOLINT (returns always OK)
+fmi2Status COSMPTraceFilePlayer::SetupExperiment(fmi2Boolean tolerance_defined,
+                                                 fmi2Real tolerance,
+                                                 fmi2Real start_time,
+                                                 fmi2Boolean stop_time_defined,
+                                                 fmi2Real stop_time)  // NOLINT (returns always OK)
 {
     FmiVerboseLog("fmi2SetupExperiment(%d,%g,%g,%d,%g)", tolerance_defined, tolerance, start_time, stop_time_defined, stop_time);
     return DoStart(tolerance_defined, tolerance, start_time, stop_time_defined, stop_time);
 }
 
-fmi2Status COSMPTraceFilePlayer::EnterInitializationMode() // NOLINT (returns always OK)
+fmi2Status COSMPTraceFilePlayer::EnterInitializationMode()  // NOLINT (returns always OK)
 {
     FmiVerboseLog("fmi2EnterInitializationMode()");
     return DoEnterInitializationMode();
@@ -400,13 +403,13 @@ fmi2Status COSMPTraceFilePlayer::DoStep(fmi2Real current_communication_point, fm
     return DoCalc(current_communication_point, communication_step_size, no_set_fmu_state_prior_to_current_pointfmi_2_component);
 }
 
-fmi2Status COSMPTraceFilePlayer::Terminate() // NOLINT (returns always OK)
+fmi2Status COSMPTraceFilePlayer::Terminate()  // NOLINT (returns always OK)
 {
     FmiVerboseLog("fmi2Terminate()");
     return DoTerm();
 }
 
-fmi2Status COSMPTraceFilePlayer::Reset() // NOLINT (returns always OK)
+fmi2Status COSMPTraceFilePlayer::Reset()  // NOLINT (returns always OK)
 {
     FmiVerboseLog("fmi2Reset()");
     if (trace_file_reader_ != nullptr)
