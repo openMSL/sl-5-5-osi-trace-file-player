@@ -245,11 +245,6 @@ fmi2Status COSMPTraceFilePlayer::DoCalc(fmi2Real current_communication_point, fm
 
     switch (reading_result->message_type)
     {
-        case osi3::ReaderTopLevelMessage::kGroundTruth: {
-            auto* const ground_truth = dynamic_cast<osi3::GroundTruth*>(reading_result->message.get());  // NOLINT
-            std::cerr << "GroundTruth currently not supported" << std::endl;
-            return fmi2Fatal;
-        }
         case osi3::ReaderTopLevelMessage::kSensorData: {
             auto* const sensor_data = dynamic_cast<osi3::SensorData*>(reading_result->message.get());
             SetFmiSensorDataOut(*sensor_data);
@@ -261,7 +256,7 @@ fmi2Status COSMPTraceFilePlayer::DoCalc(fmi2Real current_communication_point, fm
             break;
         }
         default: {
-            std::cerr << "Could not determine type of message" << std::endl;
+            std::cerr << "Could not determine type of message or is not a SensorData or SensorView" << std::endl;
             return fmi2Fatal;
         }
     }
@@ -375,11 +370,11 @@ fmi2Component COSMPTraceFilePlayer::Instantiate(fmi2String instance_name,
     return (fmi2Component)myc;
 }
 
-fmi2Status COSMPTraceFilePlayer::SetupExperiment(fmi2Boolean tolerance_defined,
+fmi2Status COSMPTraceFilePlayer::SetupExperiment(fmi2Boolean tolerance_defined,  // NOLINT (returns always OK)
                                                  fmi2Real tolerance,
                                                  fmi2Real start_time,
                                                  fmi2Boolean stop_time_defined,
-                                                 fmi2Real stop_time)  // NOLINT (returns always OK)
+                                                 fmi2Real stop_time)
 {
     FmiVerboseLog("fmi2SetupExperiment(%d,%g,%g,%d,%g)", tolerance_defined, tolerance, start_time, stop_time_defined, stop_time);
     return DoStart(tolerance_defined, tolerance, start_time, stop_time_defined, stop_time);
