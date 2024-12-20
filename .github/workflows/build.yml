@@ -52,3 +52,9 @@ jobs:
       - name: Build C++
         working-directory: build
         run: cmake --build .
+
+      - name: Upload FMU Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sl-5-5-osi-trace-file-player.fmu
+          path: build/sl-5-5-osi-trace-file-player.fmu
