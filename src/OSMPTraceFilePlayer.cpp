@@ -6,6 +6,10 @@
 
 #include "OSMPTraceFilePlayer.h"
 
+#include <filesystem>
+
+#include "osi-utilities/tracefile/Reader.h"
+
 /*
  * Debug Breaks
  *
@@ -42,11 +46,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <ctime>
 #include <string>
 
 using namespace std;
-namespace fs = std::experimental::filesystem;
 
 #ifdef PRIVATE_LOG_PATH_TRACE_FILE_PLAYER
 ofstream COSMPTraceFilePlayer::private_log_file;
@@ -55,18 +57,6 @@ ofstream COSMPTraceFilePlayer::private_log_file;
 /*
  * ProtocolBuffer Accessors
  */
-
-int COSMPTraceFilePlayer::ReallocBuffer(char** message_buf, size_t new_size)
-{
-    char* new_ptr = *message_buf;
-    new_ptr = (char*)realloc(new_ptr, new_size);
-    if (new_ptr == nullptr)
-    {
-        NormalLog("OSI", "Failed to allocate buffer memory!!!");
-    }
-    *message_buf = new_ptr;
-    return 0;
-}
 
 void* DecodeIntegerToPointer(fmi2Integer hi, fmi2Integer lo)
 {
@@ -79,7 +69,7 @@ void* DecodeIntegerToPointer(fmi2Integer hi, fmi2Integer lo)
             int hi;
         } base;
         unsigned long long address;
-    } myaddr;
+    } myaddr{};
     myaddr.base.lo = lo;
     myaddr.base.hi = hi;
     return reinterpret_cast<void*>(myaddr.address);
@@ -101,7 +91,7 @@ void EncodePointerToInteger(const void* ptr, fmi2Integer& hi, fmi2Integer& lo)
             int hi;
         } base;
         unsigned long long address;
-    } myaddr;
+    } myaddr{};
     myaddr.address = reinterpret_cast<unsigned long long>(ptr);
     hi = myaddr.base.hi;
     lo = myaddr.base.lo;
@@ -117,7 +107,7 @@ void COSMPTraceFilePlayer::SetFmiSensorViewOut(const osi3::SensorView& data)
 {
     data.SerializeToString(current_buffer_);
     EncodePointerToInteger(current_buffer_->data(), integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASEHI_IDX], integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASELO_IDX]);
-    integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_SIZE_IDX] = (fmi2Integer)current_buffer_->length();
+    integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_SIZE_IDX] = static_cast<fmi2Integer>(current_buffer_->length());
     NormalLog("OSMP",
               "Providing %08X %08X, writing from %p ...",
               integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASEHI_IDX],
@@ -130,7 +120,7 @@ void COSMPTraceFilePlayer::SetFmiSensorDataOut(const osi3::SensorData& data)
 {
     data.SerializeToString(current_buffer_);
     EncodePointerToInteger(current_buffer_->data(), integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASEHI_IDX], integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASELO_IDX]);
-    integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_SIZE_IDX] = (fmi2Integer)current_buffer_->length();
+    integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_SIZE_IDX] = static_cast<fmi2Integer>(current_buffer_->length());
     NormalLog("OSMP",
               "Providing %08X %08X, writing from %p ...",
               integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASEHI_IDX],
@@ -162,27 +152,27 @@ fmi2Status COSMPTraceFilePlayer::DoInit()
     DEBUGBREAK();
 
     /* Booleans */
-    for (int i = 0; i < FMI_BOOLEAN_VARS; i++)
+    for (int& boolean_var : boolean_vars_)
     {
-        boolean_vars_[i] = fmi2False;
+        boolean_var = fmi2False;
     }
 
     /* Integers */
-    for (int i = 0; i < FMI_INTEGER_VARS; i++)
+    for (int& integer_var : integer_vars_)
     {
-        integer_vars_[i] = 0;
+        integer_var = 0;
     }
 
     /* Reals */
-    for (int i = 0; i < FMI_REAL_VARS; i++)
+    for (double& real_var : real_vars_)
     {
-        real_vars_[i] = 0.0;
+        real_var = 0.0;
     }
 
     /* Strings */
-    for (int i = 0; i < FMI_STRING_VARS; i++)
+    for (auto& string_var : string_vars_)
     {
-        string_vars_[i] = "";
+        string_var = "";
     }
 
     return fmi2OK;
@@ -206,140 +196,71 @@ fmi2Status COSMPTraceFilePlayer::DoExitInitializationMode()
 {
     DEBUGBREAK();
 
+    const std::filesystem::path folder_path = FmiTracePath();
+    std::string trace_file_name = FmiTraceName();
+    if (trace_file_name.empty())
+    {
+        for (const auto& entry : std::filesystem::directory_iterator(folder_path))
+        {
+            if (entry.path().extension() == ".osi")
+            {
+                trace_file_name = entry.path().string();
+                break;
+            }
+        }
+    }
+
+    if (trace_file_name.empty())
+    {
+        throw std::runtime_error("No trace file found in " + folder_path.string());
+    }
+
+    const std::filesystem::path trace_path = folder_path / trace_file_name;
+
+    trace_file_reader_ = osi3::TraceFileReaderFactory::createReader(trace_path);
+
+    if (!trace_file_reader_->Open(trace_path))
+    {
+
+        return fmi2Fatal;
+    }
     return fmi2OK;
 }
 
 fmi2Status COSMPTraceFilePlayer::DoCalc(fmi2Real current_communication_point, fmi2Real communication_step_size, fmi2Boolean no_set_fmu_state_prior_to_current_point)
 {
-    DEBUGBREAK();
-    std::chrono::milliseconds start_source_calc = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
 
-    double time = current_communication_point + communication_step_size;
-
-    NormalLog("OSI", "Playing binary SensorView at %f for %f (step size %f)", current_communication_point, time, communication_step_size);
-
-    fs::path dir = FmiTracePath();
-    string binary_file_name = dir / FmiTraceName();
-
-    if (FmiTraceName().empty())
+    if (!trace_file_reader_->HasNext())
     {
-        // Get first .osi file in directory
-        std::vector<fs::directory_entry> entries;
-        fs::directory_iterator di(dir);
-        fs::directory_iterator end;
-        std::copy_if(di, end, std::back_inserter(entries), file_extension_is(".osi"));
-        binary_file_name = entries.begin()->path().string();
+        std::cerr << "End of trace file reached (experiment stopTime longer than tracefile)" << std::endl;
+        return fmi2Discard;
     }
 
-    std::size_t sv_found = binary_file_name.find("_sv_");
-    std::size_t sd_found = binary_file_name.find("_sd_");
-    NormalLog("OSI", "Playing binary trace file from %s", binary_file_name.c_str());
-    NormalLog("OSI", "At %f for %f (step size %f)", current_communication_point, time, communication_step_size);
-    if ((sv_found == std::string::npos) && (sd_found == std::string::npos))
+    const auto reading_result = trace_file_reader_->ReadMessage();
+    if (!reading_result)
     {
-        NormalLog("OSI", "No SensorView or SensorData found in proto binary file!!!");
-        return fmi2Error;
+        std::cerr << "Error reading message." << std::endl;
+        return fmi2Fatal;
     }
 
-    FILE* binary_file = fopen(binary_file_name.c_str(), "rb");
-    if (binary_file == nullptr)
+    switch (reading_result->message_type)
     {
-        perror("Open failed");
-    }
-
-    int is_ok = 1;
-    size_t buf_size = 0;
-    typedef unsigned int MessageSizeT;
-    char* message_buf = nullptr;
-    fseek(binary_file, 4 * played_frames_ + total_length_, SEEK_SET);
-    MessageSizeT size = 0;
-    uint ret = fread(&size, sizeof(MessageSizeT), 1, binary_file);
-    if (ret == 0)
-    {
-        NormalLog("OSI", "End of trace!!!");
-    }
-    else if (ret != 1)
-    {
-        NormalLog("OSI", "Failed to read the size of the message!!!");
-        is_ok = 0;
-    }
-    if ((is_ok != 0) && size > buf_size)
-    {
-        size_t new_size = size * 2;
-        if (ReallocBuffer(&message_buf, new_size) < 0)
-        {
-            is_ok = 0;
-            NormalLog("OSI", "Failed to allocate memory!!!");
+        case osi3::ReaderTopLevelMessage::kSensorData: {
+            auto* const sensor_data = dynamic_cast<osi3::SensorData*>(reading_result->message.get());
+            SetFmiSensorDataOut(*sensor_data);
+            break;
+        }
+        case osi3::ReaderTopLevelMessage::kSensorView: {
+            auto* const sensor_view = dynamic_cast<osi3::SensorView*>(reading_result->message.get());
+            SetFmiSensorViewOut(*sensor_view);
+            break;
+        }
+        default: {
+            std::cerr << "Could not determine type of message or is not a SensorData or SensorView" << std::endl;
+            return fmi2Fatal;
         }
     }
-    if (is_ok != 0)
-    {
-        size_t already_read = 0;
-        while (already_read < size)
-        {
-            fseek(binary_file, 4 * (played_frames_ + 1) + total_length_, SEEK_SET);
-            uint res = fread(message_buf + already_read, sizeof(message_buf[0]), size - already_read, binary_file);
-            if (res == 0)
-            {
-                NormalLog("OSI", "Unexpected end of file!!!");
-                is_ok = 0;
-                NormalLog("OSI", "Failed to read the message!!!");
-            }
-            already_read += res;
-        }
-    }
-
-    fclose(binary_file);
-
-    if (sv_found != std::string::npos)
-    {
-        osi3::SensorView current_out;
-        if (is_ok != 0)
-        {
-            std::string message_str(message_buf, message_buf + size);
-            if (!current_out.ParseFromString(message_str))
-            {
-                NormalLog("OSI", "Trace file not parsed correctly!!!");
-            }
-        }
-        NormalLog("OSI", "Buffer length at frame %i: %i", played_frames_, size);
-
-        total_length_ = total_length_ + size;
-        NormalLog("OSI", "Total length after frame %i: %i", played_frames_, total_length_);
-        played_frames_ = played_frames_ + 1;
-
-        SetFmiSensorViewOut(current_out);
-        SetFmiValid(1);
-        if (current_out.has_global_ground_truth())
-        {
-            SetFmiCount(current_out.global_ground_truth().moving_object_size());
-        }
-    }
-    else if (sd_found != std::string::npos)
-    {
-        osi3::SensorData current_out;
-        if (is_ok != 0)
-        {
-            std::string message_str(message_buf, message_buf + size);
-            if (!current_out.ParseFromString(message_str))
-            {
-                NormalLog("OSI", "Trace file not parsed correctly!!!");
-            }
-        }
-        NormalLog("OSI", "Buffer length at frame %i: %i", played_frames_, size);
-
-        total_length_ = total_length_ + size;
-        NormalLog("OSI", "Total length after frame %i: %i", played_frames_, total_length_);
-        played_frames_ = played_frames_ + 1;
-
-        SetFmiSensorDataOut(current_out);
-        SetFmiValid(1);
-        if (current_out.sensor_view(0).has_global_ground_truth())
-        {
-            SetFmiCount(current_out.sensor_view(0).global_ground_truth().moving_object_size());
-        }
-    }
-
+    SetFmiValid(1);
     return fmi2OK;
 }
 
@@ -347,6 +268,15 @@ fmi2Status COSMPTraceFilePlayer::DoTerm()
 {
     DEBUGBREAK();
     return fmi2OK;
+}
+
+fmi2Status COSMPTraceFilePlayer::GetBooleanStatus(fmi2StatusKind s, fmi2Boolean* value) const
+{
+    if (s == fmi2Terminated)
+    {
+        return trace_file_reader_->HasNext() ? fmi2Discard : fmi2OK;
+    }
+    return fmi2Discard;
 }
 
 void COSMPTraceFilePlayer::DoFree()
@@ -369,23 +299,21 @@ COSMPTraceFilePlayer::COSMPTraceFilePlayer(fmi2String theinstance_name,
       fmu_type_(thefmu_type),
       fmu_guid_(thefmu_guid),
       fmu_resource_location_(thefmu_resource_location),
-      functions_(*thefunctions),
       visible_(thevisible != 0),
-      logging_on_(thelogging_on != 0)
+      logging_on_(thelogging_on != 0),
+      functions_(*thefunctions)
+
 {
     current_buffer_ = new string();
     last_buffer_ = new string();
+
     logging_categories_.clear();
     logging_categories_.insert("FMI");
     logging_categories_.insert("OSMP");
     logging_categories_.insert("OSI");
 }
 
-COSMPTraceFilePlayer::~COSMPTraceFilePlayer()
-{
-    delete current_buffer_;
-    delete last_buffer_;
-}
+COSMPTraceFilePlayer::~COSMPTraceFilePlayer() = default;
 
 fmi2Status COSMPTraceFilePlayer::SetDebugLogging(fmi2Boolean thelogging_on, size_t n_categories, const fmi2String categories[])
 {
@@ -430,25 +358,11 @@ fmi2Component COSMPTraceFilePlayer::Instantiate(fmi2String instance_name,
 {
     auto* myc = new COSMPTraceFilePlayer(instance_name, fmu_type, fmu_guid, fmu_resource_location, functions, visible, logging_on);
 
-    if (myc->DoInit() != fmi2OK)
-    {
-        fmi_verbose_log_global("fmi2Instantiate(\"%s\",%d,\"%s\",\"%s\",\"%s\",%d,%d) = NULL (DoInit failure)",
-                               instance_name,
-                               fmu_type,
-                               fmu_guid,
-                               (fmu_resource_location != NULL) ? fmu_resource_location : "<NULL>",
-                               "FUNCTIONS",
-                               visible,
-                               logging_on);
-        delete myc;
-        return nullptr;
-    }
-
-    fmi_verbose_log_global("fmi2Instantiate(\"%s\",%d,\"%s\",\"%s\",\"%s\",%d,%d) = %p",
+    fmi_verbose_log_global(R"(fmi2Instantiate("%s",%d,"%s","%s","%s",%d,%d) = %p)",
                            instance_name,
                            fmu_type,
                            fmu_guid,
-                           (fmu_resource_location != NULL) ? fmu_resource_location : "<NULL>",
+                           (fmu_resource_location != nullptr) ? fmu_resource_location : "<NULL>",
                            "FUNCTIONS",
                            visible,
                            logging_on,
@@ -456,13 +370,17 @@ fmi2Component COSMPTraceFilePlayer::Instantiate(fmi2String instance_name,
     return (fmi2Component)myc;
 }
 
-fmi2Status COSMPTraceFilePlayer::SetupExperiment(fmi2Boolean tolerance_defined, fmi2Real tolerance, fmi2Real start_time, fmi2Boolean stop_time_defined, fmi2Real stop_time)
+fmi2Status COSMPTraceFilePlayer::SetupExperiment(fmi2Boolean tolerance_defined,  // NOLINT (returns always OK)
+                                                 fmi2Real tolerance,
+                                                 fmi2Real start_time,
+                                                 fmi2Boolean stop_time_defined,
+                                                 fmi2Real stop_time)
 {
     FmiVerboseLog("fmi2SetupExperiment(%d,%g,%g,%d,%g)", tolerance_defined, tolerance, start_time, stop_time_defined, stop_time);
     return DoStart(tolerance_defined, tolerance, start_time, stop_time_defined, stop_time);
 }
 
-fmi2Status COSMPTraceFilePlayer::EnterInitializationMode()
+fmi2Status COSMPTraceFilePlayer::EnterInitializationMode()  // NOLINT (returns always OK)
 {
     FmiVerboseLog("fmi2EnterInitializationMode()");
     return DoEnterInitializationMode();
@@ -480,16 +398,19 @@ fmi2Status COSMPTraceFilePlayer::DoStep(fmi2Real current_communication_point, fm
     return DoCalc(current_communication_point, communication_step_size, no_set_fmu_state_prior_to_current_pointfmi_2_component);
 }
 
-fmi2Status COSMPTraceFilePlayer::Terminate()
+fmi2Status COSMPTraceFilePlayer::Terminate()  // NOLINT (returns always OK)
 {
     FmiVerboseLog("fmi2Terminate()");
     return DoTerm();
 }
 
-fmi2Status COSMPTraceFilePlayer::Reset()
+fmi2Status COSMPTraceFilePlayer::Reset()  // NOLINT (returns always OK)
 {
     FmiVerboseLog("fmi2Reset()");
-
+    if (trace_file_reader_ != nullptr)
+    {
+        trace_file_reader_->Close();
+    }
     DoFree();
     return DoInit();
 }
@@ -654,7 +575,7 @@ FMI2_Export const char* fmi2GetVersion()
 
 FMI2_Export fmi2Status fmi2SetDebugLogging(fmi2Component c, fmi2Boolean logging_on, size_t n_categories, const fmi2String categories[])
 {
-    auto* myc = (COSMPTraceFilePlayer*)c;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
     return myc->SetDebugLogging(logging_on, n_categories, categories);
 }
 
@@ -675,19 +596,19 @@ FMI2_Export fmi2Component fmi2Instantiate(fmi2String instance_name,
 FMI2_Export fmi2Status
 fmi2SetupExperiment(fmi2Component c, fmi2Boolean tolerance_defined, fmi2Real tolerance, fmi2Real start_time, fmi2Boolean stop_time_defined, fmi2Real stop_time)
 {
-    auto* myc = (COSMPTraceFilePlayer*)c;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
     return myc->SetupExperiment(tolerance_defined, tolerance, start_time, stop_time_defined, stop_time);
 }
 
 FMI2_Export fmi2Status fmi2EnterInitializationMode(fmi2Component c)
 {
-    auto* myc = (COSMPTraceFilePlayer*)c;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
     return myc->EnterInitializationMode();
 }
 
 FMI2_Export fmi2Status fmi2ExitInitializationMode(fmi2Component c)
 {
-    auto* myc = (COSMPTraceFilePlayer*)c;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
     return myc->ExitInitializationMode();
 }
 
@@ -696,25 +617,25 @@ FMI2_Export fmi2Status fmi2DoStep(fmi2Component c,
                                   fmi2Real communication_step_size,
                                   fmi2Boolean no_set_fmu_state_prior_to_current_pointfmi_2_component)
 {
-    auto* myc = (COSMPTraceFilePlayer*)c;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
     return myc->DoStep(current_communication_point, communication_step_size, no_set_fmu_state_prior_to_current_pointfmi_2_component);
 }
 
 FMI2_Export fmi2Status fmi2Terminate(fmi2Component c)
 {
-    auto* myc = (COSMPTraceFilePlayer*)c;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
     return myc->Terminate();
 }
 
 FMI2_Export fmi2Status fmi2Reset(fmi2Component c)
 {
-    auto* myc = (COSMPTraceFilePlayer*)c;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
     return myc->Reset();
 }
 
 FMI2_Export void fmi2FreeInstance(fmi2Component c)
 {
-    auto* myc = (COSMPTraceFilePlayer*)c;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
     myc->FreeInstance();
     delete myc;
 }
@@ -724,49 +645,49 @@ FMI2_Export void fmi2FreeInstance(fmi2Component c)
  */
 FMI2_Export fmi2Status fmi2GetReal(fmi2Component c, const fmi2ValueReference vr[], size_t nvr, fmi2Real value[])
 {
-    auto* myc = (COSMPTraceFilePlayer*)c;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
     return myc->GetReal(vr, nvr, value);
 }
 
 FMI2_Export fmi2Status fmi2GetInteger(fmi2Component c, const fmi2ValueReference vr[], size_t nvr, fmi2Integer value[])
 {
-    auto* myc = (COSMPTraceFilePlayer*)c;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
     return myc->GetInteger(vr, nvr, value);
 }
 
 FMI2_Export fmi2Status fmi2GetBoolean(fmi2Component c, const fmi2ValueReference vr[], size_t nvr, fmi2Boolean value[])
 {
-    auto* myc = (COSMPTraceFilePlayer*)c;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
     return myc->GetBoolean(vr, nvr, value);
 }
 
 FMI2_Export fmi2Status fmi2GetString(fmi2Component c, const fmi2ValueReference vr[], size_t nvr, fmi2String value[])
 {
-    auto* myc = (COSMPTraceFilePlayer*)c;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
     return myc->GetString(vr, nvr, value);
 }
 
 FMI2_Export fmi2Status fmi2SetReal(fmi2Component c, const fmi2ValueReference vr[], size_t nvr, const fmi2Real value[])
 {
-    auto* myc = (COSMPTraceFilePlayer*)c;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
     return myc->SetReal(vr, nvr, value);
 }
 
 FMI2_Export fmi2Status fmi2SetInteger(fmi2Component c, const fmi2ValueReference vr[], size_t nvr, const fmi2Integer value[])
 {
-    auto* myc = (COSMPTraceFilePlayer*)c;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
     return myc->SetInteger(vr, nvr, value);
 }
 
 FMI2_Export fmi2Status fmi2SetBoolean(fmi2Component c, const fmi2ValueReference vr[], size_t nvr, const fmi2Boolean value[])
 {
-    auto* myc = (COSMPTraceFilePlayer*)c;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
     return myc->SetBoolean(vr, nvr, value);
 }
 
 FMI2_Export fmi2Status fmi2SetString(fmi2Component c, const fmi2ValueReference vr[], size_t nvr, const fmi2String value[])
 {
-    auto* myc = (COSMPTraceFilePlayer*)c;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
     return myc->SetString(vr, nvr, value);
 }
 
@@ -846,7 +767,8 @@ FMI2_Export fmi2Status fmi2GetIntegerStatus(fmi2Component c, const fmi2StatusKin
 
 FMI2_Export fmi2Status fmi2GetBooleanStatus(fmi2Component c, const fmi2StatusKind s, fmi2Boolean* value)
 {
-    return fmi2Discard;
+    auto* myc = static_cast<COSMPTraceFilePlayer*>(c);
+    return myc->GetBooleanStatus(s, value);
 }
 
 FMI2_Export fmi2Status fmi2GetStringStatus(fmi2Component c, const fmi2StatusKind s, fmi2String* value)

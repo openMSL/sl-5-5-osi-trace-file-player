@@ -3,13 +3,11 @@
 // Copyright 2022 Persival GmbH
 // SPDX-License-Identifier: MPL-2.0
 //
-
-#include "OSMPTraceFilePlayerConfig.h"
-
-#include <experimental/filesystem>
+#ifndef OSMPTraceFilePlayer_H_
+#define OSMPTraceFilePlayer_H_
+#include <filesystem>
 
 using namespace std;
-namespace fs = std::experimental::filesystem;
 
 #ifndef FMU_SHARED_OBJECT
 #define FMI2_FUNCTION_PREFIX OSMPTraceFilePlayer_
@@ -66,14 +64,12 @@ namespace fs = std::experimental::filesystem;
 #define FMI_STRING_VARS (FMI_STRING_LAST_IDX + 1)
 
 #include <cstdarg>
-#include <fstream>
-#include <iostream>
 #include <set>
 #include <string>
-#include <utility>
 
 #undef min
 #undef max
+#include "osi-utilities/tracefile/Reader.h"
 #include "osi_sensordata.pb.h"
 #include "osi_sensorview.pb.h"
 
@@ -113,16 +109,17 @@ class COSMPTraceFilePlayer
     fmi2Status SetInteger(const fmi2ValueReference vr[], size_t nvr, const fmi2Integer value[]);
     fmi2Status SetBoolean(const fmi2ValueReference vr[], size_t nvr, const fmi2Boolean value[]);
     fmi2Status SetString(const fmi2ValueReference vr[], size_t nvr, const fmi2String value[]);
+    fmi2Status GetBooleanStatus(fmi2StatusKind s, fmi2Boolean* value) const;
 
   protected:
     /* Internal Implementation */
     fmi2Status DoInit();
-    fmi2Status DoStart(fmi2Boolean tolerance_defined, fmi2Real tolerance, fmi2Real start_time, fmi2Boolean stop_time_defined, fmi2Real stop_time);
-    fmi2Status DoEnterInitializationMode();
+    static fmi2Status DoStart(fmi2Boolean tolerance_defined, fmi2Real tolerance, fmi2Real start_time, fmi2Boolean stop_time_defined, fmi2Real stop_time);
+    static fmi2Status DoEnterInitializationMode();
     fmi2Status DoExitInitializationMode();
     fmi2Status DoCalc(fmi2Real current_communication_point, fmi2Real communication_step_size, fmi2Boolean no_set_fmu_state_prior_to_current_point);
-    fmi2Status DoTerm();
-    void DoFree();
+    static fmi2Status DoTerm();
+    static void DoFree();
 
     /* Private File-based Logging just for Debugging */
 #ifdef PRIVATE_LOG_PATH_TRACE_FILE_PLAYER
@@ -208,20 +205,14 @@ class COSMPTraceFilePlayer
     bool logging_on_;
     set<string> logging_categories_;
     fmi2CallbackFunctions functions_;
-    fmi2Boolean boolean_vars_[FMI_BOOLEAN_VARS];
-    fmi2Integer integer_vars_[FMI_INTEGER_VARS];
-    fmi2Real real_vars_[FMI_REAL_VARS];
+    fmi2Boolean boolean_vars_[FMI_BOOLEAN_VARS]{};
+    fmi2Integer integer_vars_[FMI_INTEGER_VARS]{};
+    fmi2Real real_vars_[FMI_REAL_VARS]{};
     string string_vars_[FMI_STRING_VARS];
     string* current_buffer_;
     string* last_buffer_;
-    long total_length_ = 0;
-    long played_frames_ = 0;
-    struct file_extension_is
-    {
-        std::string ext;
-        explicit file_extension_is(std::string ext) : ext(std::move(ext)) {}
-        bool operator()(fs::directory_entry const& entry) const { return entry.path().extension() == ext; }
-    };
+    std::unique_ptr<osi3::TraceFileReader> trace_file_reader_;
+
     int ReallocBuffer(char** message_buf, size_t new_size);
 
     /* Simple Accessors */
@@ -239,3 +230,4 @@ class COSMPTraceFilePlayer
     void ResetFmiSensorViewOut();
     void ResetFmiSensorDataOut();
 };
+#endif
