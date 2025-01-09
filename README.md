@@ -38,9 +38,8 @@ sudo apt-get install libprotobuf-dev protobuf-compiler
 ### Clone with submodules
 
 ```bash
-git clone https://github.com/openMSL/sl-5-5-osi-trace-file-player.git
+git clone --recurse-submodules https://github.com/openMSL/sl-5-5-osi-trace-file-player.git
 cd sl-5-5-osi-trace-file-player
-git submodule update --init
 ```
 
 ### Build
