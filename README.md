@@ -23,16 +23,22 @@ Otherwise, the FMU will return with an error.
 
 ### Dependencies
 
-Install `cmake` (at least version 3.10.2):
+Common tools for building:
 
 ```bash
-sudo apt-get install cmake
+sudo apt-get install git cmake build-essential
 ```
 
 Install `protobuf` (at least version 3.0.0):
 
 ```bash
 sudo apt-get install libprotobuf-dev protobuf-compiler
+```
+
+Install `libzstd` and `liblz4`:
+
+```bash
+sudo apt-get install libzstd-dev liblz4-dev
 ```
 
 ### Clone with submodules
