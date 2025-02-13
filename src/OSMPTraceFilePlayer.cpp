@@ -204,7 +204,7 @@ fmi2Status COSMPTraceFilePlayer::DoExitInitializationMode()
         {
             if (entry.path().extension() == ".osi")
             {
-                trace_file_name = entry.path().string();
+                trace_file_name = entry.path().filename().string();
                 break;
             }
         }
