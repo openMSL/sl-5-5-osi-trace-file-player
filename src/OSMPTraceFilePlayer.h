@@ -72,6 +72,7 @@ using namespace std;
 #include "osi-utilities/tracefile/Reader.h"
 #include "osi_sensordata.pb.h"
 #include "osi_sensorview.pb.h"
+#include "osi_groundtruth.pb.h"
 
 /* FMU Class */
 class COSMPTraceFilePlayer
@@ -226,8 +227,11 @@ class COSMPTraceFilePlayer
     /* Protocol Buffer Accessors */
     void SetFmiSensorViewOut(const osi3::SensorView& data);
     void SetFmiSensorDataOut(const osi3::SensorData& data);
+    void SetFmiGroundTruthOut(const osi3::GroundTruth& data);
 
     void ResetFmiSensorViewOut();
     void ResetFmiSensorDataOut();
+    void ResetFmiGroundTruthOut();
 };
 #endif
+

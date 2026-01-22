@@ -143,6 +143,26 @@ void COSMPTraceFilePlayer::ResetFmiSensorDataOut()
     integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASELO_IDX] = 0;
 }
 
+void COSMPTraceFilePlayer::SetFmiGroundTruthOut(const osi3::GroundTruth& data)
+{
+    data.SerializeToString(current_buffer_);
+    EncodePointerToInteger(current_buffer_->data(), integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASEHI_IDX], integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASELO_IDX]);
+    integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_SIZE_IDX] = static_cast<fmi2Integer>(current_buffer_->length());
+    NormalLog("OSMP",
+              "Providing %08X %08X, writing from %p ...",
+              integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASEHI_IDX],
+              integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASELO_IDX],
+              current_buffer_->data());
+    swap(current_buffer_, last_buffer_);
+}
+
+void COSMPTraceFilePlayer::ResetFmiGroundTruthOut()
+{
+    integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_SIZE_IDX] = 0;
+    integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASEHI_IDX] = 0;
+    integer_vars_[FMI_INTEGER_SENSORVIEW_OUT_BASELO_IDX] = 0;
+}
+
 /*
  * Actual Core Content
  */
@@ -255,8 +275,13 @@ fmi2Status COSMPTraceFilePlayer::DoCalc(fmi2Real current_communication_point, fm
             SetFmiSensorViewOut(*sensor_view);
             break;
         }
+        case osi3::ReaderTopLevelMessage::kGroundTruth: {
+            auto* const ground_truth = dynamic_cast<osi3::GroundTruth*>(reading_result->message.get());
+            SetFmiGroundTruthOut(*ground_truth);
+            break;
+        }
         default: {
-            std::cerr << "Could not determine type of message or is not a SensorData or SensorView" << std::endl;
+            std::cerr << "Could not determine type of message or is not a SensorData, SensorView or GroundTruth" << std::endl;
             return fmi2Fatal;
         }
     }
